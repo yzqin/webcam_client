@@ -30,6 +30,7 @@ def setup_package():
           python_requires='>=3.6,<3.11',
           install_requires=[
               # General dependencies
+              "numpy",
               "pyzmq",
               "simplejpeg",
               "opencv-python",

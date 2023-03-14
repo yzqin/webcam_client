@@ -3,19 +3,24 @@ from datetime import datetime
 from typing import Union, Optional
 
 import cv2
+import numpy as np
+import simplejpeg
 
 from webcam_client.bbox_detector import SingleHandDetector
 from webcam_client.imagezmq import ImageSender
 
 
 class WebcamClient:
-    def __init__(self, device: Union[str, int] = 0, hand_type="Right", image_host="localhost",
-                 image_port: int = 5555, verbose=False):
+    def __init__(self, device: Union[str, int] = 0, hand_type="right_hand", image_host="localhost",
+                 image_port: int = 5555, use_jpg=True, verbose=False):
+        hand_dict = {"left_hand": "Left", "right_hand": "Right"}
         self.connection_address = f"tcp://{image_host}:{image_port}"
         self.verbose = verbose
+        self.use_jpg = use_jpg
+        self.hand_type = hand_type
 
         self.video_capture = cv2.VideoCapture(device)
-        self.detector = SingleHandDetector(hand_type=hand_type)
+        self.detector = SingleHandDetector(hand_type=hand_dict[hand_type])
         self.sender: Optional[ImageSender] = None
 
     def __enter__(self):
@@ -41,25 +46,22 @@ class WebcamClient:
         if num_box < 1:
             return None
 
-        hand_bbox_list = [{"left_hand": None, "right_hand": None}]
-        hand_bbox_list[0]["right_hand"] = bbox[0]
+        meta_data = {"hand_type": self.hand_type, "bbox": bbox[0].tolist(), "timestep": now.timestamp()}
         image_cropped = self.detector.crop_bbox_on_image(image_bgr, bbox[0])
 
-        if self.verbose:
-            font = cv2.FONT_HERSHEY_SIMPLEX
-            org = (0, 30)
-            fontScale = 1
-            color = (255, 0, 0)
-            thickness = 2
-            current_time = now.strftime("%M:%S.%f")
-            image_cropped = cv2.putText(image_cropped, current_time, org, font, fontScale, color, thickness,
-                                        cv2.LINE_AA)
-
-        self.sender.send_image("test", image_cropped)
+        if self.use_jpg:
+            tic = time.time()
+            jpg_buffer = simplejpeg.encode_jpeg(np.ascontiguousarray(image_cropped), quality=95, colorspace='BGR')
+            tac = time.time()
+            if self.verbose:
+                print(f"Jpeg encode time: {tac - tic}s, resolution: {image.shape[:2]}")
+            self.sender.send_jpg(meta_data, jpg_buffer)
+        else:
+            self.sender.send_image(meta_data, image_cropped)
 
 
 def main():
-    with WebcamClient(image_host="137.110.198.230", verbose=True) as client:
+    with WebcamClient(image_host="137.110.198.230", verbose=True, device="/dev/video4") as client:
         while True:
             client.send()
 
