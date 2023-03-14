@@ -85,6 +85,14 @@ class SingleHandDetector:
         return image
 
     @staticmethod
+    def crop_bbox_on_image(image, bbox):
+        image_shape = np.array(image.shape[:2][::-1])
+        upper_limit = np.tile(image_shape, 2)
+        bbox[2:] += bbox[:2]
+        bbox = np.clip(bbox, np.zeros([4]), upper_limit).astype(int)
+        return image[bbox[1]:bbox[3], bbox[0]:bbox[2]]
+
+    @staticmethod
     def draw_skeleton_on_image(image, keypoint_2d, style="white"):
         if style == "default":
             mp.solutions.drawing_utils.draw_landmarks(
