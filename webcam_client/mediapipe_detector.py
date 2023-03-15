@@ -2,10 +2,12 @@ from typing import NamedTuple
 
 import cv2
 import mediapipe as mp
+import mediapipe.framework as framework
 import numpy as np
 from mediapipe.python.solution_base import SolutionBase
 from mediapipe.python.solutions import hands_connections
 from mediapipe.python.solutions.drawing_utils import DrawingSpec
+from mediapipe.framework.formats import landmark_pb2
 from mediapipe.python.solutions.hands import HandLandmark
 
 
@@ -93,7 +95,7 @@ class SingleHandDetector:
         return image[bbox[1]:bbox[3], bbox[0]:bbox[2]]
 
     @staticmethod
-    def draw_skeleton_on_image(image, keypoint_2d, style="white"):
+    def draw_skeleton_on_image(image, keypoint_2d: landmark_pb2.NormalizedLandmarkList, style="white"):
         if style == "default":
             mp.solutions.drawing_utils.draw_landmarks(
                 image,
@@ -140,3 +142,61 @@ class SingleHandDetector:
         keypoint_2d = results.multi_hand_landmarks[desired_hand_num]
         num_box = len(results.multi_hand_landmarks)
         return num_box, self._mediapipe_bbox_to_numpy(rgb, bbox)[None, :], keypoint_3d, keypoint_2d
+
+    @staticmethod
+    def parse_keypoint_3d(keypoint_3d: framework.formats.landmark_pb2.LandmarkList) -> np.ndarray:
+        keypoint = np.empty([21, 3])
+        for i in range(21):
+            keypoint[i][0] = keypoint_3d.landmark[i].x
+            keypoint[i][1] = keypoint_3d.landmark[i].y
+            keypoint[i][2] = keypoint_3d.landmark[i].z
+        return keypoint
+
+    @staticmethod
+    def parse_keypoint_2d(keypoint_2d: landmark_pb2.NormalizedLandmarkList, img_size) -> np.ndarray:
+        keypoint = np.empty([21, 2])
+        for i in range(21):
+            keypoint[i][0] = keypoint_2d.landmark[i].x
+            keypoint[i][1] = keypoint_2d.landmark[i].y
+        keypoint = keypoint * np.array([img_size[1], img_size[0]])[None, :]
+        return keypoint
+
+    @staticmethod
+    def refill_keypoint_2d(keypoint_2d_array: np.ndarray, img_size):
+        keypoints = keypoint_2d_array / np.array([img_size[1], img_size[0]])[None, :]
+        landmark_list = landmark_pb2.NormalizedLandmarkList()
+        for i in range(21):
+            landmark = landmark_pb2.NormalizedLandmark(x=keypoints[i, 0], y=keypoints[i, 1])
+            landmark_list.landmark.append(landmark)
+        return landmark_list
+
+    @staticmethod
+    def estimate_frame_from_hand_points(keypoint_3d_array: np.ndarray) -> np.ndarray:
+        """
+        Compute the 3D coordinate frame (orientation only) from detected 3d key points
+        :param points: keypoint3 detected from MediaPipe detector. Order: [wrist, index, middle, pinky]
+        :return: the coordinate frame of wrist in MANO convention
+        """
+        assert keypoint_3d_array.shape == (21, 3)
+        points = keypoint_3d_array[[0, 5, 9], :]
+
+        # Compute vector from palm to the first joint of middle finger
+        x_vector = points[0] - points[2]
+
+        # Normal fitting with SVD
+        points = points - np.mean(points, axis=0, keepdims=True)
+        u, s, v = np.linalg.svd(points)
+
+        normal = v[2, :]
+
+        # Gram–Schmidt Orthonormalize
+        x = x_vector - np.sum(x_vector * normal) * normal
+        x = x / np.linalg.norm(x)
+        z = np.cross(x, normal)
+
+        # We assume that the vector from pinky to index is similar the z axis in MANO convention
+        if np.sum(z * (points[1] - points[2])) < 0:
+            normal *= -1
+            z *= -1
+        frame = np.stack([x, normal, z], axis=1)
+        return frame
