@@ -6,8 +6,8 @@ import cv2
 import numpy as np
 import simplejpeg
 
-from webcam_client.mediapipe_detector import SingleHandDetector
 from webcam_client.imagezmq import ImageSender
+from webcam_client.mediapipe_detector import SingleHandDetector
 
 
 class WebcamClient:
@@ -67,19 +67,3 @@ class WebcamClient:
             self.sender.send_jpg(meta_data, jpg_buffer)
         else:
             self.sender.send_image(meta_data, image_cropped)
-
-
-def main():
-    camera_mat = np.array([[606.29937744, 0., 317.60064697], [0., 606.19647217, 229.66906738], [0., 0., 1.]])
-    with WebcamClient(
-            camera_mat=camera_mat,
-            image_host="137.110.198.230",
-            verbose=True,
-            device="/dev/video4",
-            use_jpg=True) as client:
-        while True:
-            client.send()
-
-
-if __name__ == '__main__':
-    main()
