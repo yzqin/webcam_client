@@ -29,12 +29,12 @@ Example: python3 run_detector_client --host "123.234.123.000" --mac -v
        [-h] [--device DEVICE] --host HOST [--port PORT] [--mac] [--verbose]
 
 options:
--h, --help            show this help message and exit
---device DEVICE, -d DEVICE
-Device name of the webcam in OpenCV VideoCapture format. Can be either a int number like 0 or a path to the WebCam device on Linux like '/dev/video0'
---host HOST           The server host address, either IP address or domain name.
---port PORT, -p PORT  The port number for server to receive the webcam stream from ZeroMQ.
---mac, -m             The server host address, either IP address or domain name.
---verbose, -v         The server host address, either IP address or domain name.
+  -h, --help            show this help message and exit
+  --device DEVICE, -d DEVICE
+                        Device name of the webcam in OpenCV VideoCapture format. Can be either a int number like 0 or a path to the WebCam device on Linux like '/dev/video0'
+  --host HOST           The server host address, either IP address or domain name.
+  --port PORT, -p PORT  The port number for server to receive the webcam stream from ZeroMQ.
+  --mac, -m             Flag to indicate whether you are using MacBook.
+  --verbose, -v         Flag for verbose.
 ```
 

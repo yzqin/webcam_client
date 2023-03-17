@@ -22,9 +22,9 @@ def parse_args():
     parser.add_argument("--port", "-p", required=False, default=5555, type=int,
                         help="The port number for server to receive the webcam stream from ZeroMQ. ")
     parser.add_argument("--mac", "-m", required=False, action="store_true", default=True,
-                        help="The server host address, either IP address or domain name.")
+                        help="Flag to indicate whether you are using MacBook.")
     parser.add_argument("--verbose", "-v", required=False, action="store_true", default=False,
-                        help="The server host address, either IP address or domain name.")
+                        help="Flag for verbose.")
     args = parser.parse_args()
     return args
 
